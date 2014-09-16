@@ -23,7 +23,7 @@ public class GraphiteUDP implements GraphiteSender {
     private InetSocketAddress address;
     private final Charset charset;
 
-    private final ByteBuffer buffer = ByteBuffer.allocateDirect(MAX_DATAGRAM_SIZE);
+    private final ByteBuffer buffer = ByteBuffer.allocate(MAX_DATAGRAM_SIZE);
     private DatagramChannel datagramChannel = null;
     private int failures;
 
