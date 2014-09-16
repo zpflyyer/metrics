@@ -16,11 +16,14 @@ public class GraphiteUDP implements GraphiteSender {
 
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
+    private static final int MAX_DATAGRAM_SIZE = 576;
+
     private final String hostname;
     private final int port;
     private InetSocketAddress address;
     private final Charset charset;
 
+    private final ByteBuffer buffer = ByteBuffer.allocateDirect(MAX_DATAGRAM_SIZE);
     private DatagramChannel datagramChannel = null;
     private int failures;
 
@@ -99,22 +102,21 @@ public class GraphiteUDP implements GraphiteSender {
             connect();
         }
 
-        try {
-            StringBuilder buf = new StringBuilder();
-            buf.append(sanitize(name));
-            buf.append(' ');
-            buf.append(sanitize(value));
-            buf.append(' ');
-            buf.append(Long.toString(timestamp));
-            buf.append('\n');
-            String str = buf.toString();
-            ByteBuffer byteBuffer = ByteBuffer.wrap(str.getBytes(UTF_8));
-            datagramChannel.send(byteBuffer, address);
-            this.failures = 0;
-        } catch (IOException e) {
-            failures++;
-            throw e;
-        }
+        byte[] nameBytes = sanitize(name).getBytes(charset);
+        byte[] valueBytes = sanitize(value).getBytes(charset);
+        byte[] timestampBytes = sanitize(Long.toString(timestamp)).getBytes(charset);
+
+        int length = nameBytes.length + valueBytes.length + timestampBytes.length + 3;
+
+        if (buffer.capacity() < length) {
+            buffer
+                .put(nameBytes)
+                .putChar(' ')
+                .put(valueBytes)
+                .putChar(' ')
+                .put(timestampBytes)
+                .putChar('\n');
+           }
     }
 
     @Override
@@ -124,7 +126,15 @@ public class GraphiteUDP implements GraphiteSender {
 
     @Override
     public void flush() throws IOException {
-    	  // Nothing to do
+        try {
+            datagramChannel.send(buffer, address);
+            this.failures = 0;
+        } catch (IOException e) {
+            failures++;
+            throw e;
+        } finally {
+            buffer.rewind();
+        }
     }
 
     @Override
