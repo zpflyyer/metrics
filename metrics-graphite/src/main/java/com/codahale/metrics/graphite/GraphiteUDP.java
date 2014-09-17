@@ -22,6 +22,7 @@ public class GraphiteUDP implements GraphiteSender {
     private final int port;
     private InetSocketAddress address;
     private final Charset charset;
+    private final DatagramChannelFactory datagramChannelFactory;
 
     private final ByteBuffer buffer = ByteBuffer.allocate(MAX_DATAGRAM_SIZE);
     private DatagramChannel datagramChannel = null;
@@ -34,7 +35,7 @@ public class GraphiteUDP implements GraphiteSender {
      * @param port The port of the Carbon server
      */
     public GraphiteUDP(String hostname, int port) {
-        this(hostname, port, UTF_8);
+        this(hostname, port, DatagramChannelFactory.getDefault(), UTF_8);
     }
 
     /**
@@ -42,11 +43,25 @@ public class GraphiteUDP implements GraphiteSender {
      *
      * @param hostname The hostname of the Carbon server
      * @param port The port of the Carbon server
+     * @param datagramChannelFactory the datagram channel factory
      */
-    public GraphiteUDP(String hostname, int port, Charset charset) {
+    public GraphiteUDP(String hostname, int port, DatagramChannelFactory datagramChannelFactory) {
+        this(hostname, port, datagramChannelFactory, UTF_8);
+    }
+
+    /**
+     * Creates a new client which sends data to given address using UDP
+     *
+     * @param hostname The hostname of the Carbon server
+     * @param port The port of the Carbon server
+     * @param datagramChannelFactory the datagram channel factory
+     * @param charset the character set used by the server
+     */
+    public GraphiteUDP(String hostname, int port, DatagramChannelFactory datagramChannelFactory, Charset charset) {
         this.hostname = hostname;
         this.port = port;
         this.address = null;
+        this.datagramChannelFactory = datagramChannelFactory;
         this.charset = charset;
     }
 
@@ -56,18 +71,31 @@ public class GraphiteUDP implements GraphiteSender {
      * @param address the address of the Carbon server
      */
     public GraphiteUDP(InetSocketAddress address) {
-        this(address, UTF_8);
+        this(address, DatagramChannelFactory.getDefault(), UTF_8);
     }
 
     /**
      * Creates a new client which sends data to given address using UDP
      *
      * @param address the address of the Carbon server
+     * @param datagramChannelFactory the datagram channel factory
      */
-    public GraphiteUDP(InetSocketAddress address, Charset charset) {
+    public GraphiteUDP(InetSocketAddress address, DatagramChannelFactory datagramChannelFactory) {
+        this(address, datagramChannelFactory, UTF_8);
+    }
+
+    /**
+     * Creates a new client which sends data to given address using UDP
+     *
+     * @param address the address of the Carbon server
+     * @param datagramChannelFactory the datagram channel factory
+     * @param charset the character set used by the server
+     */
+    public GraphiteUDP(InetSocketAddress address, DatagramChannelFactory datagramChannelFactory, Charset charset) {
         this.hostname = null;
         this.port = -1;
         this.address = address;
+        this.datagramChannelFactory = datagramChannelFactory;
         this.charset = charset;
     }
 
@@ -87,7 +115,9 @@ public class GraphiteUDP implements GraphiteSender {
             address = new InetSocketAddress(hostname, port);
         }
 
-        datagramChannel = DatagramChannel.open();
+        datagramChannel = datagramChannelFactory.createDatagramChannel();
+
+        datagramChannel.connect(address);
     }
 
     @Override
@@ -97,26 +127,23 @@ public class GraphiteUDP implements GraphiteSender {
 
     @Override
     public void send(String name, String value, long timestamp) throws IOException {
-        // Underlying socket can be closed by ICMP
-        if (!isConnected()) {
-            connect();
-        }
-
         byte[] nameBytes = sanitize(name).getBytes(charset);
         byte[] valueBytes = sanitize(value).getBytes(charset);
         byte[] timestampBytes = sanitize(Long.toString(timestamp)).getBytes(charset);
 
         int length = nameBytes.length + valueBytes.length + timestampBytes.length + 3;
 
-        if (buffer.capacity() < length) {
-            buffer
-                .put(nameBytes)
-                .putChar(' ')
-                .put(valueBytes)
-                .putChar(' ')
-                .put(timestampBytes)
-                .putChar('\n');
-           }
+        if (buffer.remaining() < length) {
+            flush();
+        }
+
+        buffer
+            .put(nameBytes)
+            .putChar(' ')
+            .put(valueBytes)
+            .putChar(' ')
+            .put(timestampBytes)
+            .putChar('\n');
     }
 
     @Override
@@ -126,20 +153,30 @@ public class GraphiteUDP implements GraphiteSender {
 
     @Override
     public void flush() throws IOException {
-        try {
-            datagramChannel.send(buffer, address);
-            this.failures = 0;
-        } catch (IOException e) {
-            failures++;
-            throw e;
-        } finally {
-            buffer.rewind();
+        if (buffer.position() > 0) {
+            // Underlying socket can be closed by ICMP
+            if (!isConnected()) {
+                connect();
+            }
+
+            try {
+                buffer.flip();
+                datagramChannel.write(buffer);
+                this.failures = 0;
+            } catch (IOException e) {
+                failures++;
+                throw e;
+            } finally {
+                buffer.clear();
+            }
         }
     }
 
     @Override
     public void close() throws IOException {
-        // Leave channel & socket open for next metrics
+        flush();
+
+        datagramChannel.close();
     }
 
     protected String sanitize(String s) {
