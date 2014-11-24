@@ -39,7 +39,6 @@
         		</exclusion>
         	</exclusions>
         </dependency>
-        </dependency>
         <dependency>
         	<groupId>org.powermock</groupId>
         	<artifactId>powermock-classloading-base</artifactId>
