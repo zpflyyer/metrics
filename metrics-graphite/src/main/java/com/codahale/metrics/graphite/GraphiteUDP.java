@@ -1,6 +1,7 @@
 package com.codahale.metrics.graphite;
 
 import java.io.IOException;
+import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
@@ -121,8 +122,13 @@ public class GraphiteUDP implements GraphiteSender {
     }
 
     @Override
+    @SuppressWarnings("resource")
     public boolean isConnected() {
-    		return datagramChannel != null && !datagramChannel.socket().isClosed();
+        if (datagramChannel == null) {
+            return false;
+        }
+        DatagramSocket socket = datagramChannel.socket();
+        return socket != null && !socket.isClosed();
     }
 
     @Override
