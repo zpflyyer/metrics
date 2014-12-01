@@ -5,7 +5,7 @@ import java.nio.channels.DatagramChannel;
 
 public abstract class DatagramChannelFactory {
 
-    private static final DatagramChannelFactory DEFAULT = new DatagramChannelFactory() {
+    public static final DatagramChannelFactory DEFAULT = new DatagramChannelFactory() {
 
         @Override
         public DatagramChannel createDatagramChannel() throws IOException {
@@ -14,10 +14,10 @@ public abstract class DatagramChannelFactory {
 
     };
 
-    public static DatagramChannelFactory getDefault() {
-        return DEFAULT;
+    public DatagramChannelDelegate createDatagramChannelDelegate() throws IOException {
+        return new DatagramChannelDelegateImpl(createDatagramChannel());
     }
 
-    public abstract DatagramChannel createDatagramChannel() throws IOException;
+    protected abstract DatagramChannel createDatagramChannel() throws IOException;
 
 }

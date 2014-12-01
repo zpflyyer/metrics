@@ -1,10 +1,8 @@
 package com.codahale.metrics.graphite;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.DatagramChannel;
 import java.nio.charset.Charset;
 import java.util.regex.Pattern;
 
@@ -25,8 +23,8 @@ public class GraphiteUDP implements GraphiteSender {
     private final Charset charset;
     private final DatagramChannelFactory datagramChannelFactory;
 
-    private final ByteBuffer buffer = ByteBuffer.allocate(MAX_DATAGRAM_SIZE);
-    private DatagramChannel datagramChannel = null;
+    private ByteBuffer buffer = newBuffer();
+    private DatagramChannelDelegate datagramChannel = null;
     private int failures;
 
     /**
@@ -36,7 +34,7 @@ public class GraphiteUDP implements GraphiteSender {
      * @param port The port of the Carbon server
      */
     public GraphiteUDP(String hostname, int port) {
-        this(hostname, port, DatagramChannelFactory.getDefault(), UTF_8);
+        this(hostname, port, DatagramChannelFactory.DEFAULT, UTF_8);
     }
 
     /**
@@ -72,7 +70,7 @@ public class GraphiteUDP implements GraphiteSender {
      * @param address the address of the Carbon server
      */
     public GraphiteUDP(InetSocketAddress address) {
-        this(address, DatagramChannelFactory.getDefault(), UTF_8);
+        this(address, DatagramChannelFactory.DEFAULT, UTF_8);
     }
 
     /**
@@ -116,26 +114,21 @@ public class GraphiteUDP implements GraphiteSender {
             address = new InetSocketAddress(hostname, port);
         }
 
-        datagramChannel = datagramChannelFactory.createDatagramChannel();
+        datagramChannel = datagramChannelFactory.createDatagramChannelDelegate();
 
         datagramChannel.connect(address);
     }
 
     @Override
-    @SuppressWarnings("resource")
     public boolean isConnected() {
-        if (datagramChannel == null) {
-            return false;
-        }
-        DatagramSocket socket = datagramChannel.socket();
-        return socket != null && !socket.isClosed();
+        return datagramChannel != null && !datagramChannel.isClosed();
     }
 
     @Override
     public void send(String name, String value, long timestamp) throws IOException {
         byte[] nameBytes = sanitize(name).getBytes(charset);
         byte[] valueBytes = sanitize(value).getBytes(charset);
-        byte[] timestampBytes = sanitize(Long.toString(timestamp)).getBytes(charset);
+        byte[] timestampBytes = Long.toString(timestamp).getBytes(charset);
 
         int length = nameBytes.length + valueBytes.length + timestampBytes.length + 3;
 
@@ -173,7 +166,7 @@ public class GraphiteUDP implements GraphiteSender {
                 failures++;
                 throw e;
             } finally {
-                buffer.clear();
+                buffer = newBuffer();
             }
         }
     }
@@ -187,6 +180,10 @@ public class GraphiteUDP implements GraphiteSender {
 
     protected String sanitize(String s) {
         return WHITESPACE.matcher(s).replaceAll("-");
+    }
+
+    private ByteBuffer newBuffer() {
+        return ByteBuffer.allocate(MAX_DATAGRAM_SIZE);
     }
 
 }

@@ -1,76 +1,116 @@
 package com.codahale.metrics.graphite;
 
-import static org.mockito.Mockito.reset;
-
+import static org.mockito.Mockito.doAnswer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Fail.failBecauseExceptionWasNotThrown;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
-import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Matchers;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.Answer;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(DatagramChannel.class)
+import com.codahale.metrics.graphite.InterceptingArgumentCaptor.Interceptor;
+
+@RunWith(MockitoJUnitRunner.class)
 public class GraphiteUDPTest {
 
     public static void main(String[] args) throws Throwable {
-        GraphiteUDP gudp = new GraphiteUDP(new InetSocketAddress(InetAddress.getLoopbackAddress(), 1234), new DatagramChannelFactory() {
+        final AtomicReference<DatagramChannel> datagramChannelReference = new AtomicReference<DatagramChannel>();
+        GraphiteUDP gudp = new GraphiteUDP(new InetSocketAddress("localhost", 1234), new DatagramChannelFactory() {
 
             @Override
-            public DatagramChannel createDatagramChannel() throws IOException {
+            protected DatagramChannel createDatagramChannel() throws IOException {
                 DatagramChannel datagramChannel = DatagramChannel.open();
                 datagramChannel.bind(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
+                datagramChannelReference.set(datagramChannel);
                 return datagramChannel;
             }
         });
 
+        System.out.println("SENDING");
         gudp.connect();
-        gudp.send("asdf", "1234", System.currentTimeMillis());
+        //datagramChannelReference.get().write(UTF_8.newEncoder().encode(CharBuffer.wrap("Sending now!\n")));
+        for (int i = 0; i < 1; i++) {
+            gudp.send("asdf", "1234", 100);
+        }
+        gudp.flush();
         gudp.close();
     }
+
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
+    private static final String UNAVAILABLE_HOST = "unknown-host-10el6m7yg56ge7dm.com";
 
     private final String host = "example.com";
     private final int port = 1234;
     private final InetSocketAddress address = new InetSocketAddress(host, port);
 
     private DatagramChannelFactory datagramChannelFactory = mock(DatagramChannelFactory.class);
-    private DatagramChannel datagramChannel = mock(DatagramChannel.class);
-    private DatagramSocket datagramSocket = mock(DatagramSocket.class);
+    private DatagramChannelDelegate datagramChannel = mock(DatagramChannelDelegate.class);
 
-    private final ArgumentCaptor<ByteBuffer> bufferCaptor = ArgumentCaptor.forClass(ByteBuffer.class);
+    private final ArgumentCaptor<ByteBuffer> bufferCaptor = new InterceptingArgumentCaptor<ByteBuffer>(new Interceptor<ByteBuffer>() {
+        @Override
+        public ByteBuffer captured(ByteBuffer buffer) {
+            /*
+            int position = buffer.position();
+            int limit = buffer.limit();
+            byte[] dst = new byte[buffer.remaining()];
+            buffer.get(dst);
+            ByteBuffer output = ByteBuffer.wrap(dst);
+            output.limit(limit);
+            output.position(position);
+            return output;
+            */
+            System.out.println(buffer.position());
+            System.out.println(buffer.limit());
+            System.out.println(buffer.remaining());
+            System.out.println(buffer.capacity());
+            return buffer;
+        }
+    });
 
     private GraphiteUDP graphite;
 
     @Before
     public void setUp() throws Exception {
-        reset(datagramChannelFactory, datagramChannel, datagramSocket);
+        reset(datagramChannelFactory, datagramChannel);
 
-        when(datagramChannelFactory.createDatagramChannel()).thenReturn(datagramChannel);
-        when(datagramChannel.socket()).thenReturn(datagramSocket);
-        doNothing().when(datagramChannel).close(); // Along with using PowerMock, avoids null pointer exception from final method
+        when(datagramChannelFactory.createDatagramChannelDelegate()).thenReturn(datagramChannel);
+
+        // Throw UnknownHostException from connect if InetSocketAddress is unresolvable
+        doAnswer(new Answer<Void>() {
+            @Override
+            public Void answer(InvocationOnMock invocation) throws Throwable {
+                InetSocketAddress socketAddress = ((InetSocketAddress) invocation.getArguments()[0]);
+                if (socketAddress.getAddress() == null) {
+                    throw new UnknownHostException(socketAddress.getHostName());
+                }
+                return null;
+            }
+        }).when(datagramChannel).connect(Matchers.any(InetSocketAddress.class));
+
+        graphite = new GraphiteUDP(address, datagramChannelFactory, UTF_8);
     }
 
     @Test
     public void usesDatagramChannelFactory() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         graphite.connect();
 
         verify(datagramChannelFactory).createDatagramChannel();
@@ -78,15 +118,12 @@ public class GraphiteUDPTest {
 
     @Test
     public void measuresFailures() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         assertThat(graphite.getFailures())
                 .isZero();
     }
 
     @Test
-    @Ignore("Having trouble mocking DatagramChannel")
     public void disconnectsFromGraphiteUDP() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         graphite.connect();
         graphite.close();
 
@@ -94,9 +131,7 @@ public class GraphiteUDPTest {
     }
 
     @Test
-    @Ignore("Having trouble mocking DatagramChannel")
     public void doesNotAllowDoubleConnections() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         graphite.connect();
         try {
             graphite.connect();
@@ -108,48 +143,53 @@ public class GraphiteUDPTest {
     }
 
     @Test
-    @Ignore("Having trouble mocking DatagramChannel")
     public void writesValuesToGraphiteUDP() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         graphite.connect();
         graphite.send("name", "value", 100);
         graphite.close();
 
-        verify(datagramChannel).send(bufferCaptor.capture(), any(SocketAddress.class));
+        verify(datagramChannel).write(bufferCaptor.capture());
 
-        assertThat(new String(bufferCaptor.getValue().array()))
-                .isEqualTo("name value 100\n");
+        String string = extractStringFromBuffer();
+        assertThat(string).isEqualTo("name value 100\n");
     }
 
     @Test
-    @Ignore("Having trouble mocking DatagramChannel")
     public void sanitizesNames() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         graphite.connect();
         graphite.send("name woo", "value", 100);
         graphite.close();
 
-        assertThat(new String(bufferCaptor.getValue().array()))
-                .isEqualTo("name-woo value 100\n");
+        verify(datagramChannel).write(bufferCaptor.capture());
+
+        String string = extractStringFromBuffer();
+        assertThat(string).isEqualTo("name-woo value 100\n");
     }
 
     @Test
-    @Ignore("Having trouble mocking DatagramChannel")
     public void sanitizesValues() throws Exception {
-        graphite = new GraphiteUDP(address, datagramChannelFactory);
         graphite.connect();
         graphite.send("name", "value woo", 100);
         graphite.close();
 
-        assertThat(new String(bufferCaptor.getValue().array()))
-                .isEqualTo("name value-woo 100\n");
+        verify(datagramChannel).write(bufferCaptor.capture());
+
+        String string = extractStringFromBuffer();
+        String expected = "name value-woo 100\n";
+        System.out.println(string.length());
+        System.out.println('"' + string + '"');
+        System.out.println(expected.length());
+        System.out.println('"' + expected + '"');
+        assertThat(string).isEqualTo("name value-woo 100\n");
+    }
+
+    private String extractStringFromBuffer() throws CharacterCodingException {
+        return UTF_8.newDecoder().decode(bufferCaptor.getValue()).toString();
     }
 
     @Test
-    @Ignore
     public void notifiesIfGraphiteIsUnavailable() throws Exception {
-        final String unavailableHost = "unknown-host-10el6m7yg56ge7dm.com";
-        InetSocketAddress unavailableAddress = new InetSocketAddress(unavailableHost, 1234);
+        InetSocketAddress unavailableAddress = new InetSocketAddress(UNAVAILABLE_HOST, 1234);
         GraphiteUDP unavailableGraphite = new GraphiteUDP(unavailableAddress, datagramChannelFactory);
 
         try {
@@ -157,7 +197,7 @@ public class GraphiteUDPTest {
             failBecauseExceptionWasNotThrown(UnknownHostException.class);
         } catch (Exception e) {
             assertThat(e.getMessage())
-                .isEqualTo(unavailableHost);
+                .isEqualTo(UNAVAILABLE_HOST);
         }
     }
 
