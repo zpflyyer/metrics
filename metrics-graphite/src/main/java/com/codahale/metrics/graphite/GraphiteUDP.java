@@ -4,14 +4,11 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.regex.Pattern;
 
 /**
  * A client to a Carbon server using unconnected UDP
  */
 public class GraphiteUDP implements GraphiteSender {
-
-    private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
 
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
@@ -126,8 +123,8 @@ public class GraphiteUDP implements GraphiteSender {
 
     @Override
     public void send(String name, String value, long timestamp) throws IOException {
-        byte[] nameBytes = sanitize(name).getBytes(charset);
-        byte[] valueBytes = sanitize(value).getBytes(charset);
+        byte[] nameBytes = Sanitizer.sanitize(name).getBytes(charset);
+        byte[] valueBytes = Sanitizer.sanitize(value).getBytes(charset);
         byte[] timestampBytes = Long.toString(timestamp).getBytes(charset);
 
         int length = nameBytes.length + valueBytes.length + timestampBytes.length + 3;
@@ -176,10 +173,6 @@ public class GraphiteUDP implements GraphiteSender {
         flush();
 
         datagramChannel.close();
-    }
-
-    protected String sanitize(String s) {
-        return WHITESPACE.matcher(s).replaceAll("-");
     }
 
     private ByteBuffer newBuffer() {

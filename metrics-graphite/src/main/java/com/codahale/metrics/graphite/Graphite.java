@@ -7,13 +7,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
-import java.util.regex.Pattern;
 
 /**
  * A client to a Carbon server via TCP.
  */
 public class Graphite implements GraphiteSender {
-    private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
+
     // this may be optimistic about Carbon/Graphite
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
@@ -127,9 +126,9 @@ public class Graphite implements GraphiteSender {
     @Override
     public void send(String name, String value, long timestamp) throws IOException {
         try {
-            writer.write(sanitize(name));
+            writer.write(Sanitizer.sanitize(name));
             writer.write(' ');
-            writer.write(sanitize(value));
+            writer.write(Sanitizer.sanitize(value));
             writer.write(' ');
             writer.write(Long.toString(timestamp));
             writer.write('\n');
@@ -162,7 +161,4 @@ public class Graphite implements GraphiteSender {
         this.writer = null;
     }
 
-    protected String sanitize(String s) {
-        return WHITESPACE.matcher(s).replaceAll("-");
-    }
 }

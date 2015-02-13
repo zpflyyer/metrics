@@ -8,14 +8,11 @@ import com.rabbitmq.client.DefaultSocketConfigurator;
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.Charset;
-import java.util.regex.Pattern;
 
 /**
  * A rabbit-mq client to a Carbon server.
  */
 public class GraphiteRabbitMQ implements GraphiteSender {
-
-    private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
 
     private static final Charset UTF_8 = Charset.forName("UTF-8");
 
@@ -127,8 +124,8 @@ public class GraphiteRabbitMQ implements GraphiteSender {
     @Override
     public void send(String name, String value, long timestamp) throws IOException {
         try {
-            final String sanitizedName = sanitize(name);
-            final String sanitizedValue = sanitize(value);
+            final String sanitizedName = Sanitizer.sanitize(name);
+            final String sanitizedValue = Sanitizer.sanitize(value);
 
             final String message =
                     new StringBuilder()
@@ -158,10 +155,6 @@ public class GraphiteRabbitMQ implements GraphiteSender {
     @Override
     public int getFailures() {
         return failures;
-    }
-
-    public String sanitize(String s) {
-        return WHITESPACE.matcher(s).replaceAll("-");
     }
 
 }
