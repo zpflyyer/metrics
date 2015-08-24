@@ -15,7 +15,7 @@
  *    limitations under the License.
  */
 
-package com.codahale.metrics.riemann;
+package io.dropwizard.metrics.riemann;
 
 import com.aphyr.riemann.client.IRiemannClient;
 import com.aphyr.riemann.client.RiemannClient;

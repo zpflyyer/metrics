@@ -35,6 +35,7 @@
         <module>metrics-servlet</module>
         <module>metrics-servlets</module>
         <module>metrics-adapter</module>
+        <module>metrics-riemann</module>
     </modules>
 
     <properties>
@@ -45,6 +46,7 @@
         <jackson.version>2.6.0</jackson.version>
         <jetty9.version>9.2.12.v20150709</jetty9.version>
         <rabbitmq.version>3.5.4</rabbitmq.version>
+        <riemann.version>0.4.0</riemann.version>
         <junit.version>4.12</junit.version>
     </properties>
 

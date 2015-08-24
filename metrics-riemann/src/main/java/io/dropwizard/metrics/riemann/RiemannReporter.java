@@ -15,10 +15,10 @@
  *    limitations under the License.
  */
 
-package com.codahale.metrics.riemann;
+package io.dropwizard.metrics.riemann;
 
 import com.aphyr.riemann.client.EventDSL;
-import com.codahale.metrics.*;
+import io.dropwizard.metrics.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,7 +242,7 @@ public class RiemannReporter extends ScheduledReporter {
     }
 
 
-    private EventClosure newEvent(final String metricName, final long timestamp, final String metricType) {
+    private EventClosure newEvent(final MetricName metricName, final long timestamp, final String metricType) {
         final String prefix = this.prefix;
         final String separator = this.separator;
         return new EventClosure() {
@@ -279,11 +279,11 @@ public class RiemannReporter extends ScheduledReporter {
 
 
     @Override
-    public void report(SortedMap<String, Gauge> gauges,
-                       SortedMap<String, Counter> counters,
-                       SortedMap<String, Histogram> histograms,
-                       SortedMap<String, Meter> meters,
-                       SortedMap<String, Timer> timers) {
+    public void report(SortedMap<MetricName, Gauge> gauges,
+                       SortedMap<MetricName, Counter> counters,
+                       SortedMap<MetricName, Histogram> histograms,
+                       SortedMap<MetricName, Meter> meters,
+                       SortedMap<MetricName, Timer> timers) {
         final long timestamp = clock.getTime() / 1000;
 
         log.debug("Reporting metrics: for {} at {}", timestamp, System.currentTimeMillis());
@@ -291,23 +291,23 @@ public class RiemannReporter extends ScheduledReporter {
         try {
             riemann.connect();
 
-            for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
+            for (Map.Entry<MetricName, Gauge> entry : gauges.entrySet()) {
                 reportGauge(entry.getKey(), entry.getValue(), timestamp);
             }
 
-            for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+            for (Map.Entry<MetricName, Counter> entry : counters.entrySet()) {
                 reportCounter(entry.getKey(), entry.getValue(), timestamp);
             }
 
-            for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
+            for (Map.Entry<MetricName, Histogram> entry : histograms.entrySet()) {
                 reportHistogram(entry.getKey(), entry.getValue(), timestamp);
             }
 
-            for (Map.Entry<String, Meter> entry : meters.entrySet()) {
+            for (Map.Entry<MetricName, Meter> entry : meters.entrySet()) {
                 reportMetered(entry.getKey(), entry.getValue(), timestamp);
             }
 
-            for (Map.Entry<String, Timer> entry : timers.entrySet()) {
+            for (Map.Entry<MetricName, Timer> entry : timers.entrySet()) {
                 reportTimer(entry.getKey(), entry.getValue(), timestamp);
             }
 
@@ -319,7 +319,7 @@ public class RiemannReporter extends ScheduledReporter {
         }
     }
 
-    private void reportTimer(String name, Timer timer, long timestamp) {
+    private void reportTimer(MetricName name, Timer timer, long timestamp) {
         final Snapshot snapshot = timer.getSnapshot();
         final EventClosure reporter = newEvent(name, timestamp, timer.getClass().getSimpleName());
 
@@ -347,7 +347,7 @@ public class RiemannReporter extends ScheduledReporter {
         reportMetered(name, timer, timestamp);
     }
 
-    private void reportMetered(String name, Metered meter, long timestamp) {
+    private void reportMetered(MetricName name, Metered meter, long timestamp) {
         final EventClosure reporter = newEvent(name, timestamp, meter.getClass().getSimpleName());
 
         reporter.name("count")
@@ -362,7 +362,7 @@ public class RiemannReporter extends ScheduledReporter {
             .metric(convertRate(meter.getMeanRate())).send();
     }
 
-    private void reportHistogram(String name, Histogram histogram, long timestamp) {
+    private void reportHistogram(MetricName name, Histogram histogram, long timestamp) {
         final Snapshot snapshot = histogram.getSnapshot();
         final EventClosure reporter = newEvent(name, timestamp, histogram.getClass().getSimpleName());
 
@@ -379,12 +379,12 @@ public class RiemannReporter extends ScheduledReporter {
         reporter.name("p999").metric(snapshot.get999thPercentile()).send();
     }
 
-    private void reportCounter(String name, Counter counter, long timestamp) {
+    private void reportCounter(MetricName name, Counter counter, long timestamp) {
         final EventClosure reporter = newEvent(name, timestamp, counter.getClass().getSimpleName());
         reporter.name("count").metric(counter.getCount()).send();
     }
 
-    private void reportGauge(String name, Gauge gauge, long timestamp) {
+    private void reportGauge(MetricName name, Gauge gauge, long timestamp) {
         final EventClosure reporter = newEvent(name, timestamp, gauge.getClass().getSimpleName());
         Object o = gauge.getValue();
 

@@ -1,4 +1,4 @@
-package com.codahale.metrics.riemann;
+package io.dropwizard.metrics.riemann;
 
 import com.aphyr.riemann.client.IRiemannClient;
 

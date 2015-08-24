@@ -1,17 +1,19 @@
-package com.codahale.metrics.riemann;
+package io.dropwizard.metrics.riemann;
 
 import com.aphyr.riemann.client.IRiemannClient;
 import com.aphyr.riemann.client.EventDSL;
 import com.aphyr.riemann.client.Promise;
 
-import com.codahale.metrics.*;
-import com.codahale.metrics.Timer;
+import io.dropwizard.metrics.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InOrder;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 import org.mockito.invocation.InvocationOnMock;
@@ -328,13 +330,13 @@ public class RiemannReporterTest {
         inOrder.verifyNoMoreInteractions();
     }
 
-    private <T> SortedMap<String, T> map() {
-        return new TreeMap<String, T>();
+    private <T> SortedMap<MetricName, T> map() {
+        return new TreeMap<MetricName, T>();
     }
 
-    private <T> SortedMap<String, T> map(String name, T metric) {
-        final TreeMap<String, T> map = new TreeMap<String, T>();
-        map.put(name, metric);
+    private <T> SortedMap<MetricName, T> map(String name, T metric) {
+        final TreeMap<MetricName, T> map = new TreeMap<MetricName, T>();
+        map.put(MetricName.build(name), metric);
         return map;
     }
 
