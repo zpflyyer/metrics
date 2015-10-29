@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 import java.util.Map;
 import java.util.SortedMap;
@@ -136,6 +137,7 @@ public class CsvReporter extends ScheduledReporter {
     private final File directory;
     private final Locale locale;
     private final Clock clock;
+    private final boolean quote;
 
     private CsvReporter(MetricRegistry registry,
                         File directory,
@@ -148,6 +150,7 @@ public class CsvReporter extends ScheduledReporter {
         this.directory = directory;
         this.locale = locale;
         this.clock = clock;
+        this.quote = DecimalFormatSymbols.getInstance(locale).getDecimalSeparator() == ',';
     }
 
     @Override
@@ -185,7 +188,7 @@ public class CsvReporter extends ScheduledReporter {
         report(timestamp,
                name,
                "count,max,mean,min,stddev,p50,p75,p95,p98,p99,p999,mean_rate,m1_rate,m5_rate,m15_rate,rate_unit,duration_unit",
-               "%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,calls/%s,%s",
+               quote ? "%d,\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",calls/%s,%s" : "%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,calls/%s,%s",
                timer.getCount(),
                convertDuration(snapshot.getMax()),
                convertDuration(snapshot.getMean()),
@@ -209,7 +212,7 @@ public class CsvReporter extends ScheduledReporter {
         report(timestamp,
                name,
                "count,mean_rate,m1_rate,m5_rate,m15_rate,rate_unit",
-               "%d,%f,%f,%f,%f,events/%s",
+               quote ? "%d,\"%f\",\"%f\",\"%f\",\"%f\",events/%s" : "%d,%f,%f,%f,%f,events/%s",
                meter.getCount(),
                convertRate(meter.getMeanRate()),
                convertRate(meter.getOneMinuteRate()),
@@ -224,7 +227,7 @@ public class CsvReporter extends ScheduledReporter {
         report(timestamp,
                name,
                "count,max,mean,min,stddev,p50,p75,p95,p98,p99,p999",
-               "%d,%d,%f,%d,%f,%f,%f,%f,%f,%f,%f",
+               quote ? "%d,%d,\"%f\",%d,\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\",\"%f\"" : "%d,%d,%f,%d,%f,%f,%f,%f,%f,%f,%f",
                histogram.getCount(),
                snapshot.getMax(),
                snapshot.getMean(),
