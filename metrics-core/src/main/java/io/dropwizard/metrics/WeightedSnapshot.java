@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * A statistical snapshot of a {@link WeightedSnapshot}.
@@ -15,7 +16,7 @@ public class WeightedSnapshot extends Snapshot {
     /**
      * A single sample item with value and its weights for {@link WeightedSnapshot}.
      */
-    public static class WeightedSample {
+    public static class WeightedSample implements Comparable<WeightedSample> {
 
         private long value;
         private double weight;
@@ -30,6 +31,15 @@ public class WeightedSnapshot extends Snapshot {
 
         public void scale(double scalingFactor) {
             this.weight *= scalingFactor;
+        }
+
+        @Override
+        public int compareTo(WeightedSample o) {
+            if (value > o.value)
+                return 1;
+            if (value < o.value)
+                return -1;
+            return 0;
         }
 
     }
@@ -78,39 +88,29 @@ public class WeightedSnapshot extends Snapshot {
     /**
      * Create a new {@link Snapshot} with the given values.
      *
-     * @param values    an unordered set of values in the reservoir
+     * @param srcValues    an unordered set of values in the reservoir
      */
-    public WeightedSnapshot(Collection<WeightedSample> values) {
-        final WeightedSample[] copy = values.toArray( new WeightedSample[]{} );
+    public WeightedSnapshot(Collection<WeightedSample> srcValues) {
+        final WeightedSample[] copy = srcValues.toArray(new WeightedSample[]{});
+        Arrays.sort(copy);
 
-        Arrays.sort(copy, new Comparator<WeightedSample>() {
-            @Override
-            public int compare(WeightedSample o1, WeightedSample o2) {
-                if (o1.value > o2.value)
-                    return 1;
-                if (o1.value < o2.value)
-                    return -1;
-                return 0;
-            }
-        }
-        );
-
-        this.values = new long[copy.length];
-        this.normWeights = new double[copy.length];
-        this.quantiles = new double[copy.length];
+        int len = copy.length;
+        this.values = new long[len];
+        this.normWeights = new double[len];
+        this.quantiles = new double[len];
 
         double sumWeight = 0;
         for (WeightedSample sample : copy) {
             sumWeight += sample.weight;
         }
 
-        for (int i = 0; i < copy.length; i++) {
-            this.values[i] = copy[i].value;
-            this.normWeights[i] = copy[i].weight / sumWeight;
-        }
+        double quantile = 0;
+        for (int i = 0; i < len; i++) {
+            quantiles[i] = quantile;
 
-        for (int i = 1; i < copy.length; i++) {
-            this.quantiles[i] = this.quantiles[i - 1] + this.normWeights[i - 1];
+            WeightedSample sample = copy[i];
+            values[i] = sample.value;
+            quantile += (normWeights[i] = sample.weight / sumWeight);
         }
     }
 
