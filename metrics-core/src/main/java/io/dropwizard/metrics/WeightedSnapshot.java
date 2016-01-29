@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -16,7 +17,7 @@ public class WeightedSnapshot extends Snapshot {
     /**
      * A single sample item with value and its weights for {@link WeightedSnapshot}.
      */
-    public static class WeightedSample implements Comparable<WeightedSample> {
+    public static class WeightedSample {
 
         private long value;
         private double weight;
@@ -33,11 +34,17 @@ public class WeightedSnapshot extends Snapshot {
             this.weight *= scalingFactor;
         }
 
+    }
+
+    private static enum WeightedSampleComparator implements Comparator<WeightedSample> {
+
+        INSTANCE;
+
         @Override
-        public int compareTo(WeightedSample o) {
-            if (value > o.value)
+        public int compare(WeightedSample o1, WeightedSample o2) {
+            if (o1.value > o2.value)
                 return 1;
-            if (value < o.value)
+            if (o1.value < o2.value)
                 return -1;
             return 0;
         }
@@ -92,7 +99,7 @@ public class WeightedSnapshot extends Snapshot {
      */
     public WeightedSnapshot(Collection<WeightedSample> srcValues) {
         final WeightedSample[] copy = srcValues.toArray(new WeightedSample[]{});
-        Arrays.sort(copy);
+        Arrays.sort(copy, WeightedSampleComparator.INSTANCE);
 
         int len = copy.length;
         this.values = new long[len];
