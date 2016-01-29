@@ -114,9 +114,7 @@ public class ExponentiallyDecayingReservoir implements Reservoir {
                     while ((removedSample = values.remove(first)) == null) {
                         first = values.firstKey();
                     }
-                    if (removedSample != null) {
-                        WeightedSampleFactory.release(removedSample);
-                    }
+                    WeightedSampleFactory.release(removedSample);
                 }
             }
         } finally {
