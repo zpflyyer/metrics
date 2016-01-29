@@ -6,7 +6,6 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 
 /**
  * A statistical snapshot of a {@link WeightedSnapshot}.
@@ -17,13 +16,57 @@ public class WeightedSnapshot extends Snapshot {
      * A single sample item with value and its weights for {@link WeightedSnapshot}.
      */
     public static class WeightedSample {
-        public final long value;
-        public final double weight;
 
-        public WeightedSample(long value, double weight) {
-            this.value = value;
-            this.weight = weight;
+        private long value;
+        private double weight;
+
+        public long getValue() {
+            return value;
         }
+
+        public double getWeight() {
+            return weight;
+        }
+
+        public void scale(double scalingFactor) {
+            this.weight *= scalingFactor;
+        }
+
+    }
+
+    static class WeightedSampleFactory {
+
+        private static final ConcurrentLinkedQueue<WeightedSample> SAMPLES = new ConcurrentLinkedQueue<>();
+
+        public static final WeightedSample create(long value, double weight) {
+            WeightedSample sample = acquire();
+            sample.value = value;
+            sample.weight = weight;
+            return sample;
+        }
+
+        public static final void scale(WeightedSample weightedSample, double scalingFactor) {
+            weightedSample.weight *= scalingFactor;
+        }
+
+        public static final void set(WeightedSample weightedSample, long value, double weight) {
+            weightedSample.value = value;
+            weightedSample.weight = weight;
+        }
+
+        static WeightedSample acquire() {
+            WeightedSample sample = SAMPLES.poll();
+            if (sample == null) {
+                sample = new WeightedSample();
+            }
+            return sample;
+        }
+
+        static void release(WeightedSample sample) {
+            set(sample, Long.MAX_VALUE, Double.NaN);
+            SAMPLES.offer(sample);
+        }
+
     }
 
     private static final Charset UTF_8 = Charset.forName("UTF-8");

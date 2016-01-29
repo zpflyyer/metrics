@@ -1,6 +1,7 @@
 package io.dropwizard.metrics;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -14,25 +15,35 @@ public class Timer implements Metered, Sampling {
      * @see Timer#time()
      */
     public static class Context implements AutoCloseable {
-        private final Timer timer;
-        private final Clock clock;
-        private final long startTime;
+        private Timer timer;
+        private Clock clock;
+        private long startTime;
 
-        private Context(Timer timer, Clock clock) {
+        private void init(Timer timer, Clock clock) {
             this.timer = timer;
             this.clock = clock;
             this.startTime = clock.getTick();
         }
 
+        private void reset() {
+            this.timer = null;
+            this.clock = null;
+            this.startTime = Long.MAX_VALUE;
+        }
+
         /**
-         * Updates the timer with the difference between current and start time. Call to this method will
-         * not reset the start time. Multiple calls result in multiple updates.
+         * Updates the timer with the difference between current and start time.
+         * Context object may be recycled for use by another thread immediately.
          * @return the elapsed time in nanoseconds
          */
         public long stop() {
-            final long elapsed = clock.getTick() - startTime;
-            timer.update(elapsed, TimeUnit.NANOSECONDS);
-            return elapsed;
+            try {
+                final long elapsed = clock.getTick() - startTime;
+                timer.update(elapsed, TimeUnit.NANOSECONDS);
+                return elapsed;
+            } finally {
+                ContextFactory.release(this);
+            }
         }
 
         /** Equivalent to calling {@link #stop()}. */
@@ -40,6 +51,31 @@ public class Timer implements Metered, Sampling {
         public void close() {
             stop();
         }
+    }
+
+    private static class ContextFactory {
+
+        private static final ConcurrentLinkedQueue<Context> CONTEXTS = new ConcurrentLinkedQueue<>();
+
+        private static Context create(Timer timer, Clock clock) {
+            Context ctx = acquire();
+            ctx.init(timer, clock);
+            return ctx;
+        }
+
+        private static Context acquire() {
+            Context ctx = CONTEXTS.poll();
+            if (ctx == null) {
+                ctx = new Context();
+            }
+            return ctx;
+        }
+
+        private static void release(Context ctx) {
+            ctx.reset();
+            CONTEXTS.offer(ctx);
+        }
+
     }
 
     private final Meter meter;
@@ -125,7 +161,7 @@ public class Timer implements Metered, Sampling {
      * @see Context
      */
     public Context time() {
-        return new Context(this, clock);
+        return ContextFactory.create(this, clock);
     }
 
     @Override

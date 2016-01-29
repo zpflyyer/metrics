@@ -5,6 +5,7 @@ import org.junit.Test;
 import io.dropwizard.metrics.Snapshot;
 import io.dropwizard.metrics.WeightedSnapshot;
 import io.dropwizard.metrics.WeightedSnapshot.WeightedSample;
+import io.dropwizard.metrics.WeightedSnapshot.WeightedSampleFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -24,7 +25,7 @@ public class WeightedSnapshotTest {
         
         final ArrayList<WeightedSample> samples = new ArrayList<WeightedSnapshot.WeightedSample>();
         for (int i = 0; i < values.length; i++) {
-            samples.add(new WeightedSnapshot.WeightedSample(values[i], weights[i]));
+            samples.add(WeightedSampleFactory.create(values[i], weights[i]));
         }
         
         return samples;

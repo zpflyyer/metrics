@@ -15,6 +15,7 @@ import io.dropwizard.metrics.ExponentiallyDecayingReservoir;
 import io.dropwizard.metrics.Reservoir;
 import io.dropwizard.metrics.Snapshot;
 import io.dropwizard.metrics.WeightedSnapshot.WeightedSample;
+import io.dropwizard.metrics.WeightedSnapshot.WeightedSampleFactory;
 
 /**
  * An exponentially-decaying random reservoir of {@code long}s. Uses Cormode et al's
@@ -99,7 +100,7 @@ public class ExponentiallyDecayingReservoir implements Reservoir {
         lockForRegularUsage();
         try {
             final double itemWeight = weight(timestamp - startTime);
-            final WeightedSample sample = new WeightedSample(value, itemWeight);
+            final WeightedSample sample = WeightedSampleFactory.create(value, itemWeight);
             final double priority = itemWeight / (1.0d - ThreadLocalRandom.current().nextDouble());
 
             final long newCount = count.incrementAndGet();
@@ -109,8 +110,12 @@ public class ExponentiallyDecayingReservoir implements Reservoir {
                 Double first = values.firstKey();
                 if (first < priority && values.putIfAbsent(priority, sample) == null) {
                     // ensure we always remove an item
-                    while (values.remove(first) == null) {
+                    WeightedSample removedSample = null;
+                    while ((removedSample = values.remove(first)) == null) {
                         first = values.firstKey();
+                    }
+                    if (removedSample != null) {
+                        WeightedSampleFactory.release(removedSample);
                     }
                 }
             }
@@ -174,8 +179,8 @@ public class ExponentiallyDecayingReservoir implements Reservoir {
                 final ArrayList<Double> keys = new ArrayList<Double>(values.keySet());
                 for (Double key : keys) {
                     final WeightedSample sample = values.remove(key);
-                    final WeightedSample newSample = new WeightedSample(sample.value, sample.weight * scalingFactor);
-                    values.put(key * scalingFactor, newSample);
+                    sample.scale(scalingFactor);
+                    values.put(key * scalingFactor, sample);
                 }
 
                 // make sure the counter is in sync with the number of stored samples.
