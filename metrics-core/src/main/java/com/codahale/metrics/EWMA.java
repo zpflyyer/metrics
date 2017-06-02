@@ -23,8 +23,8 @@ public class EWMA {
     private static final double M5_ALPHA = 1 - exp(-INTERVAL / SECONDS_PER_MINUTE / FIVE_MINUTES);
     private static final double M15_ALPHA = 1 - exp(-INTERVAL / SECONDS_PER_MINUTE / FIFTEEN_MINUTES);
 
-    private volatile boolean initialized = false;
-    private volatile double rate = 0.0;
+    private boolean initialized = false;
+    private double rate = 0.0;
 
     private final LongAdderAdapter uncounted = LongAdderProxy.create();
     private final double alpha, interval;
@@ -86,11 +86,13 @@ public class EWMA {
     public void tick() {
         final long count = uncounted.sumThenReset();
         final double instantRate = count / interval;
-        if (initialized) {
-            rate += (alpha * (instantRate - rate));
-        } else {
-            rate = instantRate;
-            initialized = true;
+        synchronized (this) {
+            if (initialized) {
+                rate += (alpha * (instantRate - rate));
+            } else {
+                rate = instantRate;
+                initialized = true;
+            }
         }
     }
 
@@ -100,7 +102,7 @@ public class EWMA {
      * @param rateUnit the unit of time
      * @return the rate
      */
-    public double getRate(TimeUnit rateUnit) {
+    public synchronized double getRate(TimeUnit rateUnit) {
         return rate * (double) rateUnit.toNanos(1);
     }
 }
