@@ -112,11 +112,11 @@ class ChunkedAssociativeLongArray {
          */
         Chunk head = activeChunk.findChunkWhereKeyShouldBe(endKey);
         activeChunk = head;
-        int newEndIndex = activeChunk.findFirstIndexOfGreaterEqualElements(endKey);
+        int newEndIndex = activeChunk.findIndexOfFirstElementGreaterOrEqualThan(endKey);
         activeChunk.cursor = newEndIndex;
 
         Chunk tail = head.findChunkWhereKeyShouldBe(startKey);
-        int newStartIndex = tail.findFirstIndexOfGreaterEqualElements(startKey);
+        int newStartIndex = tail.findIndexOfFirstElementGreaterOrEqualThan(startKey);
         if (tail.startIndex != newStartIndex) {
             tail.startIndex = newStartIndex;
             tail.chunkSize = tail.cursor - tail.startIndex;
@@ -149,7 +149,7 @@ class ChunkedAssociativeLongArray {
             return;
         }
 
-        int newEndIndex = afterGapHead.findFirstIndexOfGreaterEqualElements(startKey);
+        int newEndIndex = afterGapHead.findIndexOfFirstElementGreaterOrEqualThan(startKey);
         if (newEndIndex == afterGapHead.startIndex) {
             tail.tailChunk = null;
             return;
@@ -212,7 +212,7 @@ class ChunkedAssociativeLongArray {
             * [1, 2, 3, 4, 5, 6, 7, 8] :: afterSplit
             * |s--tail--e||s--head--e|
             */
-            int splitIndex = findFirstIndexOfGreaterEqualElements(key);
+            int splitIndex = findIndexOfFirstElementGreaterOrEqualThan(key);
             if (splitIndex == startIndex || splitIndex == cursor) {
                 return tailChunk;
             }
@@ -226,28 +226,22 @@ class ChunkedAssociativeLongArray {
 
         private Chunk findChunkWhereKeyShouldBe(long key) {
             Chunk currentChunk = this;
-            while (currentChunk.isFirstElementIsEmptyOrGreaterEqualThanKey(key) && currentChunk.tailChunk != null) {
+            while (currentChunk.isFirstElementIsEmptyOrGreaterOrEqualThan(key) && currentChunk.tailChunk != null) {
                 currentChunk = currentChunk.tailChunk;
             }
             return currentChunk;
         }
 
-        private boolean isFirstElementIsEmptyOrGreaterEqualThanKey(long key) {
+        private boolean isFirstElementIsEmptyOrGreaterOrEqualThan(long key) {
             return cursor == startIndex || keys[startIndex] >= key;
         }
 
-        private int findFirstIndexOfGreaterEqualElements(long minKey) {
-            if (isFirstElementIsEmptyOrGreaterEqualThanKey(minKey)) {
+        private int findIndexOfFirstElementGreaterOrEqualThan(long key) {
+            if (isFirstElementIsEmptyOrGreaterOrEqualThan(key)) {
                 return startIndex;
             }
-            int searchIndex = binarySearch(keys, startIndex, cursor, minKey);
-            int realIndex;
-            if (searchIndex < 0) {
-                realIndex = -(searchIndex + 1);
-            } else {
-                realIndex = searchIndex;
-            }
-            return realIndex;
+            int searchIndex = binarySearch(keys, startIndex, cursor, key);
+            return searchIndex >= 0 ? searchIndex : -(searchIndex + 1);
         }
     }
 }
