@@ -174,26 +174,19 @@ class ChunkedAssociativeLongArray {
         private final long[] values;
 
         private int chunkSize; // can differ from keys.length after half clear()
-        private int startIndex = 0;
-        private int cursor = 0;
+        private int startIndex;
+        private int cursor;
         private Chunk tailChunk;
 
         private Chunk(int chunkSize) {
-            this.chunkSize = chunkSize;
-            this.tailChunk = null;
-            this.keys = new long[chunkSize];
-            this.values = new long[chunkSize];
+            this(null, chunkSize);
         }
 
         private Chunk(Chunk tailChunk, int size) {
-            this.chunkSize = size;
-            this.tailChunk = tailChunk;
-            this.keys = new long[chunkSize];
-            this.values = new long[chunkSize];
+            this(new long[size], new long[size], 0, 0, size, tailChunk);
         }
 
-        private Chunk(final long[] keys, final long[] values,
-                      final int startIndex, final int cursor, final int chunkSize, final Chunk tailChunk) {
+        private Chunk(long[] keys, long[] values, int startIndex, int cursor, int chunkSize, Chunk tailChunk) {
             this.keys = keys;
             this.values = values;
             this.startIndex = startIndex;
