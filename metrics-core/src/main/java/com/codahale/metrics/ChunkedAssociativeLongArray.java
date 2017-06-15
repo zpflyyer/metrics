@@ -109,17 +109,13 @@ class ChunkedAssociativeLongArray {
          *       |5______________________________23|                    :: trim(5, 23)
          *       [5, 9] -> [10, 13, 14, 15] -> [21]                     :: result layout
          */
-        Chunk head = findChunkWhereKeyShouldBe(activeChunk, endKey);
+        Chunk head = activeChunk.findChunkWhereKeyShouldBe(endKey);
         activeChunk = head;
-        int newEndIndex = findFirstIndexOfGreaterEqualElements(
-            activeChunk.keys, activeChunk.startIndex, activeChunk.cursor, endKey
-        );
+        int newEndIndex = activeChunk.findFirstIndexOfGreaterEqualElements(endKey);
         activeChunk.cursor = newEndIndex;
 
-        Chunk tail = findChunkWhereKeyShouldBe(head, startKey);
-        int newStartIndex = findFirstIndexOfGreaterEqualElements(
-            tail.keys, tail.startIndex, tail.cursor, startKey
-        );
+        Chunk tail = head.findChunkWhereKeyShouldBe(startKey);
+        int newStartIndex = tail.findFirstIndexOfGreaterEqualElements(startKey);
         if (tail.startIndex != newStartIndex) {
             tail.startIndex = newStartIndex;
             tail.chunkSize = tail.cursor - tail.startIndex;
@@ -140,21 +136,19 @@ class ChunkedAssociativeLongArray {
          *       |5______________________________23|                    :: clear(5, 23)
          * [3, 4]               ->                 [24, 29, 30] -> [31] :: result layout
          */
-        Chunk tail = findChunkWhereKeyShouldBe(activeChunk, endKey);
-        Chunk gapStartChunk = splitChunkOnTwoSeparateChunks(tail, endKey);
+        Chunk tail = activeChunk.findChunkWhereKeyShouldBe(endKey);
+        Chunk gapStartChunk = tail.splitChunkOnTwoSeparateChunks(endKey);
         if (gapStartChunk == null) {
             return;
         }
         // now we should skip specified gap [startKey, endKey]
         // and concatenate our tail with new head four after gap
-        Chunk afterGapHead = findChunkWhereKeyShouldBe(gapStartChunk, startKey);
+        Chunk afterGapHead = gapStartChunk.findChunkWhereKeyShouldBe(startKey);
         if (afterGapHead == null) {
             return;
         }
 
-        int newEndIndex = findFirstIndexOfGreaterEqualElements(
-            afterGapHead.keys, afterGapHead.startIndex, afterGapHead.cursor, startKey
-        );
+        int newEndIndex = afterGapHead.findFirstIndexOfGreaterEqualElements(startKey);
         if (newEndIndex == afterGapHead.startIndex) {
             tail.tailChunk = null;
             return;
@@ -173,60 +167,6 @@ class ChunkedAssociativeLongArray {
         activeChunk.cursor = 0;
     }
 
-    private Chunk splitChunkOnTwoSeparateChunks(Chunk chunk, long key) {
-        /*
-         * [1, 2, 3, 4, 5, 6, 7, 8] :: beforeSplit
-         * |s--------chunk-------e|
-         *
-         *  splitChunkOnTwoSeparateChunks(chunk, 5)
-         *
-         * [1, 2, 3, 4, 5, 6, 7, 8] :: afterSplit
-         * |s--tail--e||s--head--e|
-         */
-        int splitIndex = findFirstIndexOfGreaterEqualElements(
-            chunk.keys, chunk.startIndex, chunk.cursor, key
-        );
-        if (splitIndex == chunk.startIndex || splitIndex == chunk.cursor) {
-            return chunk.tailChunk;
-        }
-        int newTailSize = splitIndex - chunk.startIndex;
-        Chunk newTail = new Chunk(chunk.keys, chunk.values, chunk.startIndex, splitIndex, newTailSize, chunk.tailChunk);
-        chunk.startIndex = splitIndex;
-        chunk.chunkSize = chunk.chunkSize - newTailSize;
-        chunk.tailChunk = newTail;
-        return newTail;
-    }
-
-    private Chunk findChunkWhereKeyShouldBe(Chunk currentChunk, long key) {
-        while (true) {
-            if (isFirstElementIsEmptyOrGreaterEqualThanKey(currentChunk, key) && currentChunk.tailChunk != null) {
-                currentChunk = currentChunk.tailChunk;
-                continue;
-            }
-            break;
-        }
-        return currentChunk;
-    }
-
-    private boolean isFirstElementIsEmptyOrGreaterEqualThanKey(Chunk chunk, long key) {
-        return chunk.cursor == chunk.startIndex
-            || chunk.keys[chunk.startIndex] >= key;
-    }
-
-
-    private int findFirstIndexOfGreaterEqualElements(long[] array, int startIndex, int endIndex, long minKey) {
-        if (endIndex == startIndex || array[startIndex] >= minKey) {
-            return startIndex;
-        }
-        int searchIndex = binarySearch(array, startIndex, endIndex, minKey);
-        int realIndex;
-        if (searchIndex < 0) {
-            realIndex = -(searchIndex + 1);
-        } else {
-            realIndex = searchIndex;
-        }
-        return realIndex;
-    }
 
     private static class Chunk {
 
@@ -266,6 +206,54 @@ class ChunkedAssociativeLongArray {
             keys[cursor] = key;
             values[cursor] = value;
             cursor++;
+        }
+
+        private Chunk splitChunkOnTwoSeparateChunks(long key) {
+           /*
+            * [1, 2, 3, 4, 5, 6, 7, 8] :: beforeSplit
+            * |s--------chunk-------e|
+            *
+            *  splitChunkOnTwoSeparateChunks(chunk, 5)
+            *
+            * [1, 2, 3, 4, 5, 6, 7, 8] :: afterSplit
+            * |s--tail--e||s--head--e|
+            */
+            int splitIndex = findFirstIndexOfGreaterEqualElements(key);
+            if (splitIndex == startIndex || splitIndex == cursor) {
+                return tailChunk;
+            }
+            int newTailSize = splitIndex - startIndex;
+            Chunk newTail = new Chunk(keys, values, startIndex, splitIndex, newTailSize, tailChunk);
+            startIndex = splitIndex;
+            chunkSize = chunkSize - newTailSize;
+            tailChunk = newTail;
+            return newTail;
+        }
+
+        private Chunk findChunkWhereKeyShouldBe(long key) {
+            Chunk currentChunk = this;
+            while (currentChunk.isFirstElementIsEmptyOrGreaterEqualThanKey(key) && currentChunk.tailChunk != null) {
+                currentChunk = currentChunk.tailChunk;
+            }
+            return currentChunk;
+        }
+
+        private boolean isFirstElementIsEmptyOrGreaterEqualThanKey(long key) {
+            return cursor == startIndex || keys[startIndex] >= key;
+        }
+
+        private int findFirstIndexOfGreaterEqualElements(long minKey) {
+            if (cursor == startIndex || keys[startIndex] >= minKey) {
+                return startIndex;
+            }
+            int searchIndex = binarySearch(keys, startIndex, cursor, minKey);
+            int realIndex;
+            if (searchIndex < 0) {
+                realIndex = -(searchIndex + 1);
+            } else {
+                realIndex = searchIndex;
+            }
+            return realIndex;
         }
     }
 }
