@@ -20,7 +20,7 @@ public class ChunkedAssociativeLongArrayTest {
 
     @Test
     public void testOutForEmpty() {
-        then(array.out()).isEqualTo("[]");
+        then(array.toString()).isEqualTo("[]");
     }
 
     @Test
@@ -36,7 +36,7 @@ public class ChunkedAssociativeLongArrayTest {
         array.put(34, -9);
         array.put(109, 5);
 
-        then(array.out())
+        then(array.toString())
             .isEqualTo("[(-3: 3) (-2: 1) (0: 5) ]->[(3: 0) (9: 8) (15: 0) ]->[(19: 5) (21: 5) (34: -9) ]->[(109: 5) ]");
         then(array.values())
             .isEqualTo(new long[]{3, 1, 5, 0, 8, 0, 5, 5, -9, 5});
@@ -44,7 +44,7 @@ public class ChunkedAssociativeLongArrayTest {
             .isEqualTo(10);
 
         array.clear(-2, 20);
-        then(array.out())
+        then(array.toString())
             .isEqualTo("[(-3: 3) ]->[(21: 5) (34: -9) ]->[(109: 5) ]");
         then(array.values())
             .isEqualTo(new long[]{3, 5, -9, 5});
@@ -66,7 +66,7 @@ public class ChunkedAssociativeLongArrayTest {
         array.put(34, -9);
         array.put(109, 5);
 
-        then(array.out())
+        then(array.toString())
             .isEqualTo("[(-3: 3) (-2: 1) (0: 5) ]->[(3: 0) (9: 8) (15: 0) ]->[(19: 5) (21: 5) (34: -9) ]->[(109: 5) ]");
         then(array.values())
             .isEqualTo(new long[]{3, 1, 5, 0, 8, 0, 5, 5, -9, 5});
@@ -75,7 +75,7 @@ public class ChunkedAssociativeLongArrayTest {
 
         array.trim(-2, 20);
 
-        then(array.out())
+        then(array.toString())
             .isEqualTo("[(-2: 1) (0: 5) ]->[(3: 0) (9: 8) (15: 0) ]->[(19: 5) ]");
         then(array.values())
             .isEqualTo(new long[]{1, 5, 0, 8, 0, 5});

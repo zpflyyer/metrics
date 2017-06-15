@@ -72,7 +72,8 @@ class ChunkedAssociativeLongArray {
         return valueSize;
     }
 
-    synchronized String out() {
+    @Override
+    public synchronized String toString() {
         Deque<Chunk> chunksDeque = new ArrayDeque<Chunk>();
         int valuesSize = traverse(chunksDeque);
         if (valuesSize == 0) {
