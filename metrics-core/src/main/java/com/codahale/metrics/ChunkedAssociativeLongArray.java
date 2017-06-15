@@ -112,8 +112,7 @@ class ChunkedAssociativeLongArray {
          */
         Chunk head = activeChunk.findChunkWhereKeyShouldBe(endKey);
         activeChunk = head;
-        int newEndIndex = activeChunk.findIndexOfFirstElementGreaterOrEqualThan(endKey);
-        activeChunk.cursor = newEndIndex;
+        activeChunk.cursor = head.findIndexOfFirstElementGreaterOrEqualThan(endKey);
 
         Chunk tail = head.findChunkWhereKeyShouldBe(startKey);
         int newStartIndex = tail.findIndexOfFirstElementGreaterOrEqualThan(startKey);
@@ -138,7 +137,7 @@ class ChunkedAssociativeLongArray {
          * [3, 4]               ->                 [24, 29, 30] -> [31] :: result layout
          */
         Chunk tail = activeChunk.findChunkWhereKeyShouldBe(endKey);
-        Chunk gapStartChunk = tail.splitChunkOnTwoSeparateChunks(endKey);
+        Chunk gapStartChunk = tail.splitOnTwoSeparateChunks(endKey);
         if (gapStartChunk == null) {
             return;
         }
@@ -202,12 +201,12 @@ class ChunkedAssociativeLongArray {
             cursor++;
         }
 
-        private Chunk splitChunkOnTwoSeparateChunks(long key) {
+        private Chunk splitOnTwoSeparateChunks(long key) {
            /*
             * [1, 2, 3, 4, 5, 6, 7, 8] :: beforeSplit
             * |s--------chunk-------e|
             *
-            *  splitChunkOnTwoSeparateChunks(chunk, 5)
+            *  splitOnTwoSeparateChunks(5)
             *
             * [1, 2, 3, 4, 5, 6, 7, 8] :: afterSplit
             * |s--tail--e||s--head--e|
