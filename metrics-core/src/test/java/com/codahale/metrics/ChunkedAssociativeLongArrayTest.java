@@ -6,9 +6,25 @@ import org.junit.Test;
 
 public class ChunkedAssociativeLongArrayTest {
 
+    private ChunkedAssociativeLongArray array = new ChunkedAssociativeLongArray(3);
+
+    @Test
+    public void testValuesForEmpty() {
+        then(array.size()).isEqualTo(0);
+    }
+
+    @Test
+    public void testSizeForEmpty() {
+        then(array.values()).hasSize(0);
+    }
+
+    @Test
+    public void testOutForEmpty() {
+        then(array.out()).isEqualTo("[]");
+    }
+
     @Test
     public void testClear() {
-        ChunkedAssociativeLongArray array = new ChunkedAssociativeLongArray(3);
         array.put(-3, 3);
         array.put(-2, 1);
         array.put(0, 5);
@@ -39,7 +55,6 @@ public class ChunkedAssociativeLongArrayTest {
 
     @Test
     public void testTrim() {
-        ChunkedAssociativeLongArray array = new ChunkedAssociativeLongArray(3);
         array.put(-3, 3);
         array.put(-2, 1);
         array.put(0, 5);
