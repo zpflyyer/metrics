@@ -237,7 +237,7 @@ class ChunkedAssociativeLongArray {
         }
 
         private int findFirstIndexOfGreaterEqualElements(long minKey) {
-            if (cursor == startIndex || keys[startIndex] >= minKey) {
+            if (isFirstElementIsEmptyOrGreaterEqualThanKey(minKey)) {
                 return startIndex;
             }
             int searchIndex = binarySearch(keys, startIndex, cursor, minKey);
