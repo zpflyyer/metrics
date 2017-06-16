@@ -6,7 +6,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 class ChunkedAssociativeLongArray {
-    private static final long[] EMPTY = new long[0];
     private static final int DEFAULT_CHUNK_SIZE = 512;
 
     private final int defaultChunkSize;
@@ -50,7 +49,7 @@ class ChunkedAssociativeLongArray {
         final Deque<Chunk> chunksDeque = new ArrayDeque<Chunk>();
         final int valuesSize = traverse(chunksDeque);
         if (valuesSize == 0) {
-            return EMPTY;
+            return new long[0];
         }
         final long[] values = new long[valuesSize];
         int valuesIndex = 0;
