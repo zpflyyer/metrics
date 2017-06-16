@@ -33,19 +33,16 @@ class ChunkedAssociativeLongArray {
         return true;
     }
 
-    private int traverse(Deque<Chunk> traversedChunksDeque) {
+    private int traverse(Deque<Chunk> chunks) {
         Chunk currentChunk = activeChunk;
         int valuesSize = 0;
-        while (true) {
+        do {
             valuesSize += currentChunk.cursor - currentChunk.startIndex;
-            if (traversedChunksDeque != null) {
-                traversedChunksDeque.addLast(currentChunk);
-            }
-            if (currentChunk.tailChunk == null) {
-                break;
+            if (chunks != null) {
+                chunks.addLast(currentChunk);
             }
             currentChunk = currentChunk.tailChunk;
-        }
+        } while (currentChunk != null);
         return valuesSize;
     }
 
@@ -68,8 +65,7 @@ class ChunkedAssociativeLongArray {
     }
 
     synchronized int size() {
-        int valueSize = traverse(null);
-        return valueSize;
+        return traverse(null);
     }
 
     @Override
