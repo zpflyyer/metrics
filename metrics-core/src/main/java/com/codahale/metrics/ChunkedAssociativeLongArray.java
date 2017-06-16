@@ -25,7 +25,7 @@ class ChunkedAssociativeLongArray {
         if (activeChunk.cursor != 0 && activeChunk.keys[activeChunk.cursor - 1] > key) {
             return false; // key should be the same as last inserted or bigger
         }
-        boolean isFull = activeChunk.cursor - activeChunk.startIndex == activeChunk.chunkSize;
+        final boolean isFull = activeChunk.cursor - activeChunk.startIndex == activeChunk.chunkSize;
         if (isFull) {
             activeChunk = new Chunk(activeChunk, this.defaultChunkSize);
         }
@@ -47,12 +47,12 @@ class ChunkedAssociativeLongArray {
     }
 
     synchronized long[] values() {
-        Deque<Chunk> chunksDeque = new ArrayDeque<Chunk>();
-        int valuesSize = traverse(chunksDeque);
+        final Deque<Chunk> chunksDeque = new ArrayDeque<Chunk>();
+        final int valuesSize = traverse(chunksDeque);
         if (valuesSize == 0) {
             return EMPTY;
         }
-        long[] values = new long[valuesSize];
+        final long[] values = new long[valuesSize];
         int valuesIndex = 0;
         while (!chunksDeque.isEmpty()) {
             Chunk copySourceChunk = chunksDeque.removeLast();
@@ -70,13 +70,13 @@ class ChunkedAssociativeLongArray {
 
     @Override
     public synchronized String toString() {
-        Deque<Chunk> chunksDeque = new ArrayDeque<Chunk>();
-        int valuesSize = traverse(chunksDeque);
+        final Deque<Chunk> chunksDeque = new ArrayDeque<Chunk>();
+        final int valuesSize = traverse(chunksDeque);
         if (valuesSize == 0) {
             return "[]";
         }
 
-        StringBuilder builder = new StringBuilder();
+        final StringBuilder builder = new StringBuilder();
         while (!chunksDeque.isEmpty()) {
             Chunk copySourceChunk = chunksDeque.removeLast();
             builder.append('[');
@@ -106,11 +106,11 @@ class ChunkedAssociativeLongArray {
          *       |5______________________________23|                    :: trim(5, 23)
          *       [5, 9] -> [10, 13, 14, 15] -> [21]                     :: result layout
          */
-        Chunk head = activeChunk.findChunkWhereKeyShouldBe(endKey);
+        final Chunk head = activeChunk.findChunkWhereKeyShouldBe(endKey);
         activeChunk = head;
         activeChunk.cursor = head.findIndexOfFirstElementGreaterOrEqualThan(endKey);
 
-        Chunk tail = head.findChunkWhereKeyShouldBe(startKey);
+        final Chunk tail = head.findChunkWhereKeyShouldBe(startKey);
         int newStartIndex = tail.findIndexOfFirstElementGreaterOrEqualThan(startKey);
         if (tail.startIndex != newStartIndex) {
             tail.startIndex = newStartIndex;
@@ -132,19 +132,19 @@ class ChunkedAssociativeLongArray {
          *       |5______________________________23|                    :: clear(5, 23)
          * [3, 4]               ->                 [24, 29, 30] -> [31] :: result layout
          */
-        Chunk tail = activeChunk.findChunkWhereKeyShouldBe(endKey);
-        Chunk gapStartChunk = tail.splitOnTwoSeparateChunks(endKey);
+        final Chunk tail = activeChunk.findChunkWhereKeyShouldBe(endKey);
+        final Chunk gapStartChunk = tail.splitOnTwoSeparateChunks(endKey);
         if (gapStartChunk == null) {
             return;
         }
         // now we should skip specified gap [startKey, endKey]
         // and concatenate our tail with new head four after gap
-        Chunk afterGapHead = gapStartChunk.findChunkWhereKeyShouldBe(startKey);
+        final Chunk afterGapHead = gapStartChunk.findChunkWhereKeyShouldBe(startKey);
         if (afterGapHead == null) {
             return;
         }
 
-        int newEndIndex = afterGapHead.findIndexOfFirstElementGreaterOrEqualThan(startKey);
+        final int newEndIndex = afterGapHead.findIndexOfFirstElementGreaterOrEqualThan(startKey);
         if (newEndIndex == afterGapHead.startIndex) {
             tail.tailChunk = null;
             return;
@@ -207,12 +207,12 @@ class ChunkedAssociativeLongArray {
             * [1, 2, 3, 4, 5, 6, 7, 8] :: afterSplit
             * |s--tail--e||s--head--e|
             */
-            int splitIndex = findIndexOfFirstElementGreaterOrEqualThan(key);
+            final int splitIndex = findIndexOfFirstElementGreaterOrEqualThan(key);
             if (splitIndex == startIndex || splitIndex == cursor) {
                 return tailChunk;
             }
-            int newTailSize = splitIndex - startIndex;
-            Chunk newTail = new Chunk(keys, values, startIndex, splitIndex, newTailSize, tailChunk);
+            final int newTailSize = splitIndex - startIndex;
+            final Chunk newTail = new Chunk(keys, values, startIndex, splitIndex, newTailSize, tailChunk);
             startIndex = splitIndex;
             chunkSize = chunkSize - newTailSize;
             tailChunk = newTail;
@@ -235,7 +235,7 @@ class ChunkedAssociativeLongArray {
             if (isFirstElementIsEmptyOrGreaterOrEqualThan(key)) {
                 return startIndex;
             }
-            int searchIndex = binarySearch(keys, startIndex, cursor, key);
+            final int searchIndex = binarySearch(keys, startIndex, cursor, key);
             return searchIndex >= 0 ? searchIndex : -(searchIndex + 1);
         }
     }
